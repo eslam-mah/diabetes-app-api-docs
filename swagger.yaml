@@ -1,0 +1,643 @@
+openapi: 3.0.3
+info:
+  title: Al-Nas Diabetes API
+  description: |
+    REST API for the Al-Nas Diabetes Management Application.
+
+    ## Authentication
+    Most endpoints require JWT authentication. Include the token in the Authorization header:
+    ```
+    Authorization: Bearer <your_jwt_token>
+    ```
+
+    ## Roles
+    - **Doctor**: Can manage patients and their settings
+    - **Patient**: Can log doses and view their own settings
+  version: 1.0.0
+  contact:
+    name: Al-Nas Hospital
+
+servers:
+  - url: http://localhost:3000/api
+    description: Development server
+
+tags:
+  - name: Authentication
+    description: User authentication endpoints
+  - name: Doctor
+    description: Doctor-specific endpoints (requires doctor role)
+  - name: Patient
+    description: Patient-specific endpoints (requires patient role)
+  - name: User
+    description: User & notification endpoints (any authenticated user)
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        username:
+          type: string
+        role:
+          type: string
+          enum: [doctor, patient]
+        fcm_token:
+          type: string
+
+    PatientSettings:
+      type: object
+      properties:
+        target_bg:
+          type: integer
+          description: Target Blood Glucose (mg/dL)
+        correction_factor:
+          type: integer
+          description: Insulin Sensitivity Factor (ISF)
+        icr_breakfast:
+          type: integer
+          description: ICR for breakfast (06:00-11:00)
+        icr_lunch:
+          type: integer
+          description: ICR for lunch (11:00-16:00)
+        icr_dinner:
+          type: integer
+          description: ICR for dinner (16:00+)
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        body:
+          type: string
+        is_read:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    FoodItem:
+      type: object
+      properties:
+        name_en:
+          type: string
+        quantity:
+          type: number
+        carb_amount:
+          type: number
+
+    DoseLog:
+      type: object
+      properties:
+        id:
+          type: integer
+        log_time:
+          type: string
+          format: date-time
+        current_bg:
+          type: integer
+        total_carbs:
+          type: number
+        suggested_dose:
+          type: number
+        actual_dose:
+          type: number
+        food_items:
+          type: array
+          items:
+            $ref: "#/components/schemas/FoodItem"
+
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+        error:
+          type: string
+
+paths:
+  # ===== AUTHENTICATION =====
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - username
+                - password
+                - role
+              properties:
+                name:
+                  type: string
+                  example: "Dr. Ahmed Mohamed"
+                username:
+                  type: string
+                  example: "ahmed_doc"
+                email:
+                  type: string
+                  example: "ahmed@example.com"
+                password:
+                  type: string
+                  example: "securePassword123"
+                role:
+                  type: string
+                  enum: [doctor, patient]
+                  example: "doctor"
+      responses:
+        "200":
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "User registered successfully"
+        "400":
+          description: Missing required fields
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login and get JWT token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  example: "ahmed_doc"
+                password:
+                  type: string
+                  example: "securePassword123"
+                fcm_token:
+                  type: string
+                  example: "firebase_token_here"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  token:
+                    type: string
+                  user:
+                    $ref: "#/components/schemas/User"
+        "401":
+          description: Invalid credentials
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Logout and clear FCM token
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Logged out successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Logged out successfully"
+
+  # ===== DOCTOR ENDPOINTS =====
+  /doctor/patients:
+    get:
+      tags:
+        - Doctor
+      summary: Get my patients (paginated)
+      description: Returns list of patients assigned to the logged-in doctor
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: List of patients
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        name:
+                          type: string
+                        username:
+                          type: string
+                        email:
+                          type: string
+                        last_log:
+                          type: string
+                          format: date-time
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
+        "403":
+          description: Access denied - Doctors only
+
+  /doctor/patients/all:
+    get:
+      tags:
+        - Doctor
+      summary: Get all patients (paginated)
+      description: Returns all patients in the system
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: unassigned
+          in: query
+          description: Set to true to get only unassigned patients
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: List of all patients
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        name:
+                          type: string
+                        username:
+                          type: string
+                        email:
+                          type: string
+                        created_at:
+                          type: string
+                          format: date-time
+                        doctor_id:
+                          type: integer
+                          nullable: true
+                        assigned_doctor:
+                          type: string
+                          nullable: true
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
+
+  /doctor/patient/{id}/assign:
+    post:
+      tags:
+        - Doctor
+      summary: Assign patient to this doctor
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Patient's user ID
+      responses:
+        "200":
+          description: Patient assigned successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  patient:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      username:
+                        type: string
+        "400":
+          description: Patient already assigned to another doctor
+        "404":
+          description: Patient not found
+
+  /doctor/patient/{id}/settings:
+    put:
+      tags:
+        - Doctor
+      summary: Update patient medical settings
+      description: Updates ICR, Target BG, and Correction Factor
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Patient's user ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatientSettings"
+            example:
+              target_bg: 110
+              correction_factor: 45
+              icr_breakfast: 10
+              icr_lunch: 12
+              icr_dinner: 15
+      responses:
+        "200":
+          description: Settings updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Patient settings updated successfully"
+        "404":
+          description: Patient not found or not assigned to you
+
+  /doctor/patient/{id}/logs:
+    get:
+      tags:
+        - Doctor
+      summary: Get patient's dose logs
+      description: Returns full history of patient's dose logs with food items
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Patient's user ID
+      responses:
+        "200":
+          description: List of dose logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DoseLog"
+        "404":
+          description: Patient not found or not assigned to you
+
+  # ===== PATIENT ENDPOINTS =====
+  /patient/me/settings:
+    get:
+      tags:
+        - Patient
+      summary: Get my calculator settings
+      description: App calls this on startup to get medical variables
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Patient settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientSettings"
+        "403":
+          description: Access denied - Patients only
+
+  /patient/log:
+    post:
+      tags:
+        - Patient
+      summary: Save dose log
+      description: Patient saves a meal/dose calculation event
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                current_bg:
+                  type: integer
+                  example: 220
+                total_carbs:
+                  type: number
+                  example: 60.5
+                suggested_dose:
+                  type: number
+                  example: 9.0
+                actual_dose:
+                  type: number
+                  example: 9.0
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      food_id:
+                        type: integer
+                      quantity_grams:
+                        type: number
+                      calculated_carbs:
+                        type: number
+      responses:
+        "200":
+          description: Log saved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Log saved successfully"
+
+  # ===== USER & NOTIFICATION ENDPOINTS =====
+  /user/fcm-token:
+    post:
+      tags:
+        - User
+      summary: Update FCM token
+      description: Updates device token for push notifications
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - fcm_token
+              properties:
+                fcm_token:
+                  type: string
+                  example: "new_firebase_token_here"
+      responses:
+        "200":
+          description: FCM token updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "FCM token updated successfully"
+
+  /user/notifications:
+    get:
+      tags:
+        - User
+      summary: Get notification history
+      description: Returns list of past alerts (paginated)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: List of notifications
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Notification"
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
+
+  /user/notifications/{id}/read:
+    put:
+      tags:
+        - User
+      summary: Mark notification as read
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Notification ID
+      responses:
+        "200":
+          description: Notification marked as read
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Notification marked as read"
+        "404":
+          description: Notification not found
+
+  /user/notifications/read-all:
+    put:
+      tags:
+        - User
+      summary: Mark all notifications as read
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: All notifications marked as read
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "All notifications marked as read"
