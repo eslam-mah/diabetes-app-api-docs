@@ -28,6 +28,8 @@ tags:
     description: Doctor-specific endpoints (requires doctor role)
   - name: Patient
     description: Patient-specific endpoints (requires patient role)
+  - name: Foods
+    description: Food database endpoints (doctors & patients)
   - name: User
     description: User & notification endpoints (any authenticated user)
 
@@ -99,6 +101,34 @@ components:
         created_at:
           type: string
           format: date-time
+
+    Food:
+      type: object
+      properties:
+        id:
+          type: integer
+        group_name:
+          type: string
+          description: Food category/group in Arabic
+        name_ar:
+          type: string
+          description: Food name in Arabic
+        name_en:
+          type: string
+          nullable: true
+          description: Food name in English
+        carb_ratio:
+          type: number
+          description: Carbohydrate ratio per 100g
+        protein_ratio:
+          type: number
+          description: Protein ratio per 100g
+        fat_ratio:
+          type: number
+          description: Fat ratio per 100g
+        calculated_calories_per_100g:
+          type: number
+          description: Calories per 100g
 
     FoodItem:
       type: object
@@ -458,6 +488,128 @@ paths:
                   $ref: "#/components/schemas/DoseLog"
         "404":
           description: Patient not found or not assigned to you
+
+  # ===== FOODS ENDPOINTS =====
+  /foods:
+    get:
+      tags:
+        - Foods
+      summary: Get all active foods (paginated)
+      description: Returns all active food items from the database. Accessible by both doctors and patients.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          description: Items per page
+          schema:
+            type: integer
+            default: 25
+        - name: search
+          in: query
+          description: Search by Arabic or English name
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of foods
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Food"
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
+              example:
+                data:
+                  - id: 102
+                    group_name: "حبوب"
+                    name_ar: "عيش بلدي"
+                    name_en: null
+                    carb_ratio: 0.14
+                    protein_ratio: 0.15
+                    fat_ratio: 0.05
+                    calculated_calories_per_100g: 701.00
+                pagination:
+                  page: 1
+                  limit: 25
+                  total: 144
+                  totalPages: 6
+        "401":
+          description: Unauthorized
+
+    post:
+      tags:
+        - Foods
+      summary: Add a new food item
+      description: Adds a new food item to the database. Accessible by both doctors and patients.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name_ar
+                - carb_ratio
+              properties:
+                group_name:
+                  type: string
+                  description: Food category/group
+                  example: "حبوب"
+                name_ar:
+                  type: string
+                  description: Food name in Arabic (required)
+                  example: "عيش بلدي"
+                name_en:
+                  type: string
+                  description: Food name in English
+                  example: "Baladi Bread"
+                carb_ratio:
+                  type: number
+                  description: Carbohydrate ratio per 100g (required)
+                  example: 0.45
+                protein_ratio:
+                  type: number
+                  description: Protein ratio per 100g
+                  example: 0.08
+                fat_ratio:
+                  type: number
+                  description: Fat ratio per 100g
+                  example: 0.02
+                calculated_calories_per_100g:
+                  type: number
+                  description: Calories per 100g
+                  example: 250
+      responses:
+        "201":
+          description: Food item added successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Food item added successfully"
+                  food:
+                    $ref: "#/components/schemas/Food"
+        "400":
+          description: Missing required fields (name_ar and carb_ratio are required)
+        "401":
+          description: Unauthorized
 
   # ===== PATIENT ENDPOINTS =====
   /patient/me/settings:
