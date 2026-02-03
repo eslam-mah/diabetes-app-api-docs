@@ -62,9 +62,12 @@ components:
         target_bg:
           type: integer
           description: Target Blood Glucose (mg/dL)
-        correction_factor:
+        correction_factor_day:
           type: integer
-          description: Insulin Sensitivity Factor (ISF)
+          description: Insulin Sensitivity Factor for daytime (06:00-18:00)
+        correction_factor_night:
+          type: integer
+          description: Insulin Sensitivity Factor for nighttime (18:00-06:00)
         icr_breakfast:
           type: integer
           description: ICR for breakfast (06:00-11:00)
@@ -444,7 +447,8 @@ paths:
               $ref: "#/components/schemas/PatientSettings"
             example:
               target_bg: 110
-              correction_factor: 45
+              correction_factor_day: 45
+              correction_factor_night: 50
               icr_breakfast: 10
               icr_lunch: 12
               icr_dinner: 15
@@ -611,6 +615,100 @@ paths:
         "401":
           description: Unauthorized
 
+  /foods/{id}:
+    put:
+      tags:
+        - Foods
+      summary: Update a food item
+      description: Updates an existing food item. Accessible by both doctors and patients.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Food item ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name_ar
+                - carb_ratio
+              properties:
+                group_name:
+                  type: string
+                  example: "حبوب"
+                name_ar:
+                  type: string
+                  example: "عيش بلدي"
+                name_en:
+                  type: string
+                  example: "Baladi Bread"
+                carb_ratio:
+                  type: number
+                  example: 0.45
+                protein_ratio:
+                  type: number
+                  example: 0.08
+                fat_ratio:
+                  type: number
+                  example: 0.02
+                calculated_calories_per_100g:
+                  type: number
+                  example: 250
+      responses:
+        "200":
+          description: Food item updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Food item updated successfully"
+                  food:
+                    $ref: "#/components/schemas/Food"
+        "404":
+          description: Food item not found
+        "401":
+          description: Unauthorized
+
+    delete:
+      tags:
+        - Foods
+      summary: Delete a food item
+      description: Soft deletes a food item (sets is_active to 0). Accessible by both doctors and patients.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Food item ID
+      responses:
+        "200":
+          description: Food item deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Food item deleted successfully"
+        "404":
+          description: Food item not found
+        "401":
+          description: Unauthorized
+
   # ===== PATIENT ENDPOINTS =====
   /patient/me/settings:
     get:
@@ -668,6 +766,10 @@ paths:
                         type: number
                       calculated_carbs:
                         type: number
+                note:
+                  type: string
+                  description: Optional note about the meal/dose
+                  example: "Had a light breakfast"
       responses:
         "200":
           description: Log saved successfully
