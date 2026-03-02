@@ -136,8 +136,12 @@ components:
     FoodItem:
       type: object
       properties:
+        name_ar:
+          type: string
         name_en:
           type: string
+        carb_ratio:
+          type: number
         quantity:
           type: number
         carb_amount:
@@ -159,6 +163,9 @@ components:
           type: number
         actual_dose:
           type: number
+        note:
+          type: string
+          nullable: true
         food_items:
           type: array
           items:
@@ -781,6 +788,73 @@ paths:
                   message:
                     type: string
                     example: "Log saved successfully"
+
+  /patient/logs:
+    get:
+      tags:
+        - Patient
+      summary: Get my dose logs (paginated)
+      description: |
+        Returns the logged-in patient's dose logs with nested food items.
+        Supports optional date filtering (by day) and pagination.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: date
+          in: query
+          description: Filter logs by a specific date (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+          example: "2026-03-01"
+        - name: page
+          in: query
+          description: Page number
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          description: Items per page
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Paginated list of dose logs with food items
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DoseLog"
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
+              example:
+                data:
+                  - id: 42
+                    log_time: "2026-03-01T08:30:00.000Z"
+                    current_bg: 180
+                    total_carbs: 45.5
+                    suggested_dose: 7.0
+                    actual_dose: 7.0
+                    note: null
+                    food_items:
+                      - name_ar: "عيش بلدي"
+                        name_en: "Baladi Bread"
+                        carb_ratio: 0.45
+                        quantity: 100
+                        carb_amount: 45.5
+                pagination:
+                  page: 1
+                  limit: 10
+                  total: 28
+                  totalPages: 3
+        "403":
+          description: Access denied - Patients only
 
   # ===== USER & NOTIFICATION ENDPOINTS =====
   /user/fcm-token:
