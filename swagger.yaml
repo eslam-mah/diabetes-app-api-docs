@@ -140,6 +140,7 @@ components:
           type: string
         name_en:
           type: string
+          nullable: true
         carb_ratio:
           type: number
         quantity:
@@ -155,6 +156,11 @@ components:
         log_time:
           type: string
           format: date-time
+        meal_type:
+          type: string
+          nullable: true
+          description: Meal type for this log
+          example: breakfast
         current_bg:
           type: integer
         total_carbs:
@@ -171,6 +177,78 @@ components:
           items:
             $ref: "#/components/schemas/FoodItem"
 
+    DoctorPatient:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+          nullable: true
+        phone_number:
+          type: string
+          nullable: true
+        role:
+          type: string
+          enum: [patient]
+        doctor_id:
+          type: integer
+          nullable: true
+        age:
+          type: integer
+          nullable: true
+        gender:
+          type: string
+          nullable: true
+        diabetes_type:
+          type: string
+          nullable: true
+        last_log:
+          type: string
+          format: date-time
+          nullable: true
+
+    AllPatient:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+          nullable: true
+        phone_number:
+          type: string
+          nullable: true
+        role:
+          type: string
+          enum: [patient]
+        doctor_id:
+          type: integer
+          nullable: true
+        age:
+          type: integer
+          nullable: true
+        gender:
+          type: string
+          nullable: true
+        diabetes_type:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        assigned_doctor:
+          type: string
+          nullable: true
+
     Error:
       type: object
       properties:
@@ -180,7 +258,6 @@ components:
           type: string
 
 paths:
-  # ===== AUTHENTICATION =====
   /auth/register:
     post:
       tags:
@@ -288,13 +365,12 @@ paths:
                     type: string
                     example: "Logged out successfully"
 
-  # ===== DOCTOR ENDPOINTS =====
   /doctor/patients:
     get:
       tags:
         - Doctor
       summary: Get my patients (paginated)
-      description: Returns list of patients assigned to the logged-in doctor
+      description: Returns list of patients assigned to the logged-in doctor. Supports search by username, name, email, or phone number.
       security:
         - bearerAuth: []
       parameters:
@@ -308,6 +384,12 @@ paths:
           schema:
             type: integer
             default: 10
+        - name: search
+          in: query
+          description: Search by username, name, email, or phone number
+          schema:
+            type: string
+            example: "ahmed"
       responses:
         "200":
           description: List of patients
@@ -319,19 +401,7 @@ paths:
                   data:
                     type: array
                     items:
-                      type: object
-                      properties:
-                        id:
-                          type: integer
-                        name:
-                          type: string
-                        username:
-                          type: string
-                        email:
-                          type: string
-                        last_log:
-                          type: string
-                          format: date-time
+                      $ref: "#/components/schemas/DoctorPatient"
                   pagination:
                     $ref: "#/components/schemas/Pagination"
         "403":
@@ -342,7 +412,7 @@ paths:
       tags:
         - Doctor
       summary: Get all patients (paginated)
-      description: Returns all patients in the system
+      description: Returns all patients in the system. Supports optional filtering for unassigned patients and search by username, name, email, or phone number.
       security:
         - bearerAuth: []
       parameters:
@@ -362,6 +432,12 @@ paths:
           schema:
             type: boolean
             default: false
+        - name: search
+          in: query
+          description: Search by username, name, email, or phone number
+          schema:
+            type: string
+            example: "010"
       responses:
         "200":
           description: List of all patients
@@ -373,25 +449,7 @@ paths:
                   data:
                     type: array
                     items:
-                      type: object
-                      properties:
-                        id:
-                          type: integer
-                        name:
-                          type: string
-                        username:
-                          type: string
-                        email:
-                          type: string
-                        created_at:
-                          type: string
-                          format: date-time
-                        doctor_id:
-                          type: integer
-                          nullable: true
-                        assigned_doctor:
-                          type: string
-                          nullable: true
+                      $ref: "#/components/schemas/AllPatient"
                   pagination:
                     $ref: "#/components/schemas/Pagination"
 
@@ -478,7 +536,7 @@ paths:
       tags:
         - Doctor
       summary: Get patient's dose logs
-      description: Returns full history of patient's dose logs with food items
+      description: Returns full history of patient's dose logs with food items, including meal type and note.
       security:
         - bearerAuth: []
       parameters:
@@ -500,7 +558,6 @@ paths:
         "404":
           description: Patient not found or not assigned to you
 
-  # ===== FOODS ENDPOINTS =====
   /foods:
     get:
       tags:
@@ -716,7 +773,6 @@ paths:
         "401":
           description: Unauthorized
 
-  # ===== PATIENT ENDPOINTS =====
   /patient/me/settings:
     get:
       tags:
@@ -750,6 +806,11 @@ paths:
             schema:
               type: object
               properties:
+                meal_type:
+                  type: string
+                  nullable: true
+                  description: Meal type for this log
+                  example: breakfast
                 current_bg:
                   type: integer
                   example: 220
@@ -775,6 +836,7 @@ paths:
                         type: number
                 note:
                   type: string
+                  nullable: true
                   description: Optional note about the meal/dose
                   example: "Had a light breakfast"
       responses:
@@ -797,6 +859,7 @@ paths:
       description: |
         Returns the logged-in patient's dose logs with nested food items.
         Supports optional date filtering (by day) and pagination.
+        Each log also includes meal_type and note.
       security:
         - bearerAuth: []
       parameters:
@@ -837,6 +900,7 @@ paths:
                 data:
                   - id: 42
                     log_time: "2026-03-01T08:30:00.000Z"
+                    meal_type: "breakfast"
                     current_bg: 180
                     total_carbs: 45.5
                     suggested_dose: 7.0
@@ -856,7 +920,6 @@ paths:
         "403":
           description: Access denied - Patients only
 
-  # ===== USER & NOTIFICATION ENDPOINTS =====
   /user/fcm-token:
     post:
       tags:
