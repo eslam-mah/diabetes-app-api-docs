@@ -50,9 +50,25 @@ components:
           type: string
         username:
           type: string
+        phone_number:
+          type: string
+        email:
+          type: string
+          nullable: true
         role:
           type: string
           enum: [doctor, patient]
+        age:
+          type: integer
+          nullable: true
+        diabetes_type:
+          type: string
+          nullable: true
+          description: "e.g. type1, type2"
+        gender:
+          type: string
+          nullable: true
+          enum: [male, female]
         fcm_token:
           type: string
 
@@ -155,6 +171,10 @@ components:
         log_time:
           type: string
           format: date-time
+        meal_type:
+          type: string
+          nullable: true
+          description: "e.g. breakfast, lunch, dinner, snack"
         current_bg:
           type: integer
         total_carbs:
@@ -180,7 +200,6 @@ components:
           type: string
 
 paths:
-  # ===== AUTHENTICATION =====
   /auth/register:
     post:
       tags:
@@ -195,6 +214,7 @@ paths:
               required:
                 - name
                 - username
+                - phone_number
                 - password
                 - role
               properties:
@@ -204,8 +224,12 @@ paths:
                 username:
                   type: string
                   example: "ahmed_doc"
+                phone_number:
+                  type: string
+                  example: "01012345678"
                 email:
                   type: string
+                  nullable: true
                   example: "ahmed@example.com"
                 password:
                   type: string
@@ -214,6 +238,20 @@ paths:
                   type: string
                   enum: [doctor, patient]
                   example: "doctor"
+                age:
+                  type: integer
+                  nullable: true
+                  example: 35
+                diabetes_type:
+                  type: string
+                  nullable: true
+                  description: "e.g. type1, type2"
+                  example: "type1"
+                gender:
+                  type: string
+                  nullable: true
+                  enum: [male, female]
+                  example: "male"
       responses:
         "200":
           description: User registered successfully
@@ -288,7 +326,6 @@ paths:
                     type: string
                     example: "Logged out successfully"
 
-  # ===== DOCTOR ENDPOINTS =====
   /doctor/patients:
     get:
       tags:
@@ -308,6 +345,11 @@ paths:
           schema:
             type: integer
             default: 10
+        - name: search
+          in: query
+          description: Search by username, name, email, or phone number
+          schema:
+            type: string
       responses:
         "200":
           description: List of patients
@@ -323,15 +365,33 @@ paths:
                       properties:
                         id:
                           type: integer
-                        name:
-                          type: string
                         username:
+                          type: string
+                        name:
                           type: string
                         email:
                           type: string
+                          nullable: true
+                        phone_number:
+                          type: string
+                        role:
+                          type: string
+                        doctor_id:
+                          type: integer
+                          nullable: true
+                        age:
+                          type: integer
+                          nullable: true
+                        gender:
+                          type: string
+                          nullable: true
+                        diabetes_type:
+                          type: string
+                          nullable: true
                         last_log:
                           type: string
                           format: date-time
+                          nullable: true
                   pagination:
                     $ref: "#/components/schemas/Pagination"
         "403":
@@ -362,6 +422,11 @@ paths:
           schema:
             type: boolean
             default: false
+        - name: search
+          in: query
+          description: Search by username, name, email, or phone number
+          schema:
+            type: string
       responses:
         "200":
           description: List of all patients
@@ -377,18 +442,32 @@ paths:
                       properties:
                         id:
                           type: integer
-                        name:
-                          type: string
                         username:
+                          type: string
+                        name:
                           type: string
                         email:
                           type: string
-                        created_at:
+                          nullable: true
+                        phone_number:
                           type: string
-                          format: date-time
+                        role:
+                          type: string
                         doctor_id:
                           type: integer
                           nullable: true
+                        age:
+                          type: integer
+                          nullable: true
+                        gender:
+                          type: string
+                          nullable: true
+                        diabetes_type:
+                          type: string
+                          nullable: true
+                        created_at:
+                          type: string
+                          format: date-time
                         assigned_doctor:
                           type: string
                           nullable: true
@@ -478,7 +557,7 @@ paths:
       tags:
         - Doctor
       summary: Get patient's dose logs
-      description: Returns full history of patient's dose logs with food items
+      description: Returns paginated history of patient's dose logs with food items
       security:
         - bearerAuth: []
       parameters:
@@ -488,19 +567,40 @@ paths:
           schema:
             type: integer
           description: Patient's user ID
+        - name: date
+          in: query
+          description: Filter logs by a specific date (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+          example: "2026-03-01"
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
       responses:
         "200":
-          description: List of dose logs
+          description: Paginated list of dose logs
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/DoseLog"
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DoseLog"
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
         "404":
           description: Patient not found or not assigned to you
 
-  # ===== FOODS ENDPOINTS =====
   /foods:
     get:
       tags:
@@ -716,7 +816,6 @@ paths:
         "401":
           description: Unauthorized
 
-  # ===== PATIENT ENDPOINTS =====
   /patient/me/settings:
     get:
       tags:
@@ -762,6 +861,17 @@ paths:
                 actual_dose:
                   type: number
                   example: 9.0
+                meal_type:
+                  type: string
+                  nullable: true
+                  description: "e.g. breakfast, lunch, dinner, snack"
+                  example: "breakfast"
+                log_time:
+                  type: string
+                  format: date-time
+                  nullable: true
+                  description: ISO date-time of when the dose was logged
+                  example: "2026-03-10T10:47:00.000Z"
                 items:
                   type: array
                   items:
@@ -837,6 +947,7 @@ paths:
                 data:
                   - id: 42
                     log_time: "2026-03-01T08:30:00.000Z"
+                    meal_type: "breakfast"
                     current_bg: 180
                     total_carbs: 45.5
                     suggested_dose: 7.0
@@ -856,7 +967,6 @@ paths:
         "403":
           description: Access denied - Patients only
 
-  # ===== USER & NOTIFICATION ENDPOINTS =====
   /user/fcm-token:
     post:
       tags:
