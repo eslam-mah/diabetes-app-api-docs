@@ -535,8 +535,10 @@ paths:
     get:
       tags:
         - Doctor
-      summary: Get patient's dose logs
-      description: Returns full history of patient's dose logs with food items, including meal type and note.
+      summary: Get patient's dose logs (paginated)
+      description: |
+        Returns paginated history of a specific patient's dose logs with nested food items.
+        Supports optional date filtering (by day) and pagination.
       security:
         - bearerAuth: []
       parameters:
@@ -546,15 +548,60 @@ paths:
           schema:
             type: integer
           description: Patient's user ID
+        - name: date
+          in: query
+          description: Filter logs by a specific date (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+          example: "2026-03-01"
+        - name: page
+          in: query
+          description: Page number
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          description: Items per page
+          schema:
+            type: integer
+            default: 10
       responses:
         "200":
-          description: List of dose logs
+          description: Paginated list of dose logs with food items
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/DoseLog"
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DoseLog"
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
+              example:
+                data:
+                  - id: 42
+                    log_time: "2026-03-01T08:30:00.000Z"
+                    meal_type: "breakfast"
+                    current_bg: 180
+                    total_carbs: 45.5
+                    suggested_dose: 7.0
+                    actual_dose: 7.0
+                    note: null
+                    food_items:
+                      - name_ar: "عيش بلدي"
+                        name_en: "Baladi Bread"
+                        carb_ratio: 0.45
+                        quantity: 100
+                        carb_amount: 45.5
+                pagination:
+                  page: 1
+                  limit: 10
+                  total: 28
+                  totalPages: 3
         "404":
           description: Patient not found or not assigned to you
 
@@ -791,12 +838,52 @@ paths:
         "403":
           description: Access denied - Patients only
 
+    put:
+      tags:
+        - Patient
+      summary: Update my calculator settings
+      description: |
+        Patient updates their own medical settings (target BG, correction factors, ICRs).
+        If settings don't exist yet, they are created. If the patient has an assigned doctor,
+        a notification is sent to the doctor about the change.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatientSettings"
+            example:
+              target_bg: 120
+              correction_factor_day: 50
+              correction_factor_night: 60
+              icr_breakfast: 10
+              icr_lunch: 12
+              icr_dinner: 15
+      responses:
+        "200":
+          description: Settings updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Settings updated successfully"
+        "403":
+          description: Access denied - Patients only
+
   /patient/log:
     post:
       tags:
         - Patient
       summary: Save dose log
-      description: Patient saves a meal/dose calculation event
+      description: |
+        Patient saves a meal/dose calculation event.
+        An optional `log_time` can be provided to backdate the log entry.
+        If not provided, the current server timestamp is used.
       security:
         - bearerAuth: []
       requestBody:
@@ -823,6 +910,12 @@ paths:
                 actual_dose:
                   type: number
                   example: 9.0
+                log_time:
+                  type: string
+                  format: date-time
+                  nullable: true
+                  description: Optional custom log time (defaults to current server timestamp if not provided)
+                  example: "2026-03-11 10:00:00"
                 items:
                   type: array
                   items:
@@ -859,7 +952,7 @@ paths:
       description: |
         Returns the logged-in patient's dose logs with nested food items.
         Supports optional date filtering (by day) and pagination.
-        Each log also includes meal_type and note.
+        Each log also includes meal_type, log_time, and note.
       security:
         - bearerAuth: []
       parameters:
