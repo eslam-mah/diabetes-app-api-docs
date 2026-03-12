@@ -1125,3 +1125,136 @@ paths:
                   message:
                     type: string
                     example: "All notifications marked as read"
+
+  /foods/bulk-upload:
+    post:
+      tags:
+        - Foods
+      summary: Bulk upload food items
+      description: |
+        Accepts an Excel (.xlsx, .xls) or CSV file (multipart field name: "file") and inserts food items in bulk.
+        Public endpoint — no authentication required.
+
+        **Expected columns (header row):**
+        - `group_name` (optional)
+        - `name_ar` (required)
+        - `name_en` (optional)
+        - `carb_ratio` (required)
+        - `protein_ratio` (optional)
+        - `fat_ratio` (optional)
+
+        **Required columns:** `name_ar`, `carb_ratio`
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Excel or CSV file containing food items
+      responses:
+        "200":
+          description: Bulk upload completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Bulk upload completed. 10 food item(s) added, 2 failed."
+                  results:
+                    type: object
+                    properties:
+                      success:
+                        type: integer
+                        example: 10
+                      failed:
+                        type: integer
+                        example: 2
+                      errors:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            row:
+                              type: integer
+                              example: 5
+                            message:
+                              type: string
+                              example: "Missing required field: name_ar"
+
+  /auth/bulk-register:
+    post:
+      tags:
+        - Authentication
+      summary: Bulk register users
+      description: |
+        Accepts an Excel (.xlsx, .xls) or CSV file (multipart field name: "file") and registers users in bulk.
+
+        **Expected columns (header row):**
+        - `username` (required)
+        - `name` (required)
+        - `email` (optional)
+        - `phone_number` (optional)
+        - `age` (optional)
+        - `gender` (optional)
+        - `diabetes_type` (optional)
+
+        **Required columns:** `username`, `name`
+
+        **Required request parameter:** `role` — either `doctor` or `patient` (passed in body or query string).
+
+        **Password policy:** Password is set to the username value, encrypted with bcrypt.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Excel or CSV file containing user data
+                role:
+                  type: string
+                  description: Role of the users being registered (doctor or patient)
+                  example: "doctor"
+      responses:
+        "200":
+          description: Bulk registration completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Bulk registration completed. 10 user(s) registered, 2 failed."
+                  results:
+                    type: object
+                    properties:
+                      success:
+                        type: integer
+                        example: 10
+                      failed:
+                        type: integer
+                        example: 2
+                      errors:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            row:
+                              type: integer
+                              example: 5
+                            username:
+                              type: string
+                              example: "user123"
+                            message:
+                              type: string
+                              example: "Missing required field: username"
