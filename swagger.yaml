@@ -32,6 +32,7 @@ tags:
     description: Food database endpoints (doctors & patients)
   - name: User
     description: User & notification endpoints (any authenticated user)
+  
 
 components:
   securitySchemes:
@@ -256,6 +257,27 @@ components:
           type: string
         error:
           type: string
+
+    UserUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          nullable: true
+        phone_number:
+          type: string
+          nullable: true
+        age:
+          type: integer
+          nullable: true
+        gender:
+          type: string
+          nullable: true
+        diabetes_type:
+          type: string
+          nullable: true
 
 paths:
   /auth/register:
@@ -1258,3 +1280,287 @@ paths:
                             message:
                               type: string
                               example: "Missing required field: username"
+
+  /auth/change-password:
+    post:
+      tags:
+        - Authentication
+      summary: Change user password
+      description: Requires authentication. Provide current password and new password.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - current_password
+                - new_password
+              properties:
+                current_password:
+                  type: string
+                  example: "oldPass123"
+                new_password:
+                  type: string
+                  example: "newSecurePass456"
+      responses:
+        "200":
+          description: Password changed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Password changed successfully"
+        "400":
+          description: Invalid current password
+        "401":
+          description: Unauthorized
+
+  /auth/reset-password:
+    post:
+      tags:
+        - Authentication
+      summary: Reset user password to username
+      description: No authentication required. Sets password to the username value.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+              properties:
+                username:
+                  type: string
+                  example: "ahmed_doc"
+      responses:
+        "200":
+          description: Password reset successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Password reset to username successfully"
+        "404":
+          description: User not found
+
+  /patient:
+    get:
+       
+      summary: List all patients (paginated)
+      description:  endpoint to list patients (role=patient). Supports search and pagination.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: search
+          in: query
+          description: Search by name, username, email, or phone
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of patients
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AllPatient"
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
+        "403":
+          description: auth access required
+
+  /patient/{id}:
+    put:
+      
+      summary: Update patient profile
+      description: endpoint to edit patient profile information.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdate"
+      responses:
+        "200":
+          description: Patient updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  patient:
+                    $ref: "#/components/schemas/AllPatient"
+        "404":
+          description: Patient not found
+        "403":
+          description: auth access required
+
+    delete:
+      tags:
+        - auth
+      summary: Delete patient
+      description: auth endpoint to delete a patient account.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Patient deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Patient deleted successfully"
+        "404":
+          description: Patient not found
+        "403":
+          description: auth access required
+
+  /doctor:
+    get:
+      tags:
+        - auth
+      summary: List all doctors (paginated)
+      description: List doctors (role=doctor). Supports search and pagination.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: search
+          in: query
+          description: Search by name or username
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of doctors
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/User"
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
+        "403":
+          description: auth access required
+
+  /doctor/{id}:
+    put:
+      tags:
+        - auth
+      summary: Update doctor profile
+      description: auth endpoint to edit doctor profile information.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdate"
+      responses:
+        "200":
+          description: Doctor updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  doctor:
+                    $ref: "#/components/schemas/User"
+        "404":
+          description: Doctor not found
+        "403":
+          description: auth access required
+
+    delete:
+      tags:
+        - auth
+      summary: Delete doctor
+      description: auth endpoint to delete a doctor account.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Doctor deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Doctor deleted successfully"
+        "404":
+          description: Doctor not found
+        "403":
+          description: auth access required
