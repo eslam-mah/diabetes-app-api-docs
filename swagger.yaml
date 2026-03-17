@@ -32,7 +32,6 @@ tags:
     description: Food database endpoints (doctors & patients)
   - name: User
     description: User & notification endpoints (any authenticated user)
-  
 
 components:
   securitySchemes:
@@ -512,6 +511,32 @@ paths:
           description: Patient not found
 
   /doctor/patient/{id}/settings:
+    get:
+      tags:
+        - Doctor
+      summary: Get patient medical settings
+      description: Returns patient medical settings.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Patient's user ID
+      responses:
+        "200":
+          description: Patient settings retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/PatientSettings"
+        "404":
+          description: Patient settings not found, or patient not found / not assigned to you
     put:
       tags:
         - Doctor
@@ -1355,9 +1380,8 @@ paths:
 
   /patient:
     get:
-       
       summary: List all patients (paginated)
-      description:  endpoint to list patients (role=patient). Supports search and pagination.
+      description: endpoint to list patients (role=patient). Supports search and pagination.
       security:
         - bearerAuth: []
       parameters:
@@ -1395,7 +1419,6 @@ paths:
 
   /patient/{id}:
     put:
-      
       summary: Update patient profile
       description: endpoint to edit patient profile information.
       security:
