@@ -505,8 +505,6 @@ paths:
                         type: integer
                       username:
                         type: string
-        "400":
-          description: Patient already assigned to another doctor
         "404":
           description: Patient not found
 
@@ -867,6 +865,177 @@ paths:
         "401":
           description: Unauthorized
 
+  /foods/my:
+    get:
+      tags:
+        - Foods
+      summary: Get patient's custom foods
+      description: Returns the authenticated patient's own custom food items.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of custom foods
+        "401":
+          description: Unauthorized
+
+    post:
+      tags:
+        - Foods
+      summary: Add a custom food for patient
+      description: Creates a custom food item owned by the authenticated patient. Accepts carbs_per_100g and converts it to carb_ratio internally.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name_ar
+                - carbs_per_100g
+              properties:
+                name_ar:
+                  type: string
+                  description: Food name in Arabic
+                name_en:
+                  type: string
+                  description: Food name in English
+                carbs_per_100g:
+                  type: number
+                  description: Carbohydrates per 100g
+      responses:
+        "201":
+          description: Custom food saved successfully
+        "400":
+          description: Missing required fields
+        "401":
+          description: Unauthorized
+
+  /foods/my/{id}:
+    put:
+      tags:
+        - Foods
+      summary: Update patient's custom food
+      description: Updates a custom food item owned by the authenticated patient.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Food item ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name_ar:
+                  type: string
+                name_en:
+                  type: string
+                carbs_per_100g:
+                  type: number
+      responses:
+        "200":
+          description: Custom food updated successfully
+        "400":
+          description: No fields to update
+        "401":
+          description: Unauthorized
+        "404":
+          description: Custom food not found
+
+    delete:
+      tags:
+        - Foods
+      summary: Soft-delete patient's custom food
+      description: Soft-deletes a custom food item owned by the authenticated patient.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Food item ID
+      responses:
+        "200":
+          description: Custom food deleted successfully
+        "401":
+          description: Unauthorized
+        "404":
+          description: Custom food not found
+
+  /foods/favorites:
+    get:
+      tags:
+        - Foods
+      summary: Get patient's favorite foods
+      description: Returns all favorite foods for the authenticated patient with full food data.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of favorite foods
+        "401":
+          description: Unauthorized
+
+    post:
+      tags:
+        - Foods
+      summary: Add a food to favorites
+      description: Adds a food to the authenticated patient's favorites.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - food_id
+              properties:
+                food_id:
+                  type: integer
+      responses:
+        "200":
+          description: Food added to favorites successfully
+        "400":
+          description: food_id is required
+        "401":
+          description: Unauthorized
+
+  /foods/favorites/{foodId}:
+    delete:
+      tags:
+        - Foods
+      summary: Remove a food from favorites
+      description: Removes a food from the authenticated patient's favorites.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: foodId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Food item ID
+      responses:
+        "200":
+          description: Food removed from favorites
+        "401":
+          description: Unauthorized
+        "404":
+          description: Favorite food not found
+
   /patient/me/settings:
     get:
       tags:
@@ -1059,6 +1228,43 @@ paths:
                   totalPages: 3
         "403":
           description: Access denied - Patients only
+
+  /patient/log/{logId}/post-meal:
+    put:
+      tags:
+        - Patient
+      summary: Update Post-Meal Blood Glucose
+      description: Patient records their post-meal BG (typically 2 hours after the meal).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: logId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID of the dose log
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - post_meal_bg
+              properties:
+                post_meal_bg:
+                  type: integer
+                  description: Post-meal blood glucose value
+      responses:
+        "200":
+          description: Post-meal blood sugar recorded successfully
+        "400":
+          description: post_meal_bg is required
+        "404":
+          description: Log not found or unauthorized
+        "401":
+          description: Unauthorized
 
   /user/fcm-token:
     post:
