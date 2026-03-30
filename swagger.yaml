@@ -169,6 +169,10 @@ components:
           type: number
         actual_dose:
           type: number
+        post_meal_bg:
+          type: integer
+          nullable: true
+          description: Post-meal blood glucose value (typically 2 hours after meal)
         note:
           type: string
           nullable: true
@@ -635,6 +639,7 @@ paths:
                     total_carbs: 45.5
                     suggested_dose: 7.0
                     actual_dose: 7.0
+                    post_meal_bg: 195
                     note: null
                     food_items:
                       - name_ar: "عيش بلدي"
